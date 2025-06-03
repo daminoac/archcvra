@@ -1,0 +1,55 @@
+name: Update AUR Package
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时检查一次
+  workflow_dispatch:     # 支持手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq sed
+
+      - name: Update PKGBUILD
+        id: update
+        run: |
+          chmod +x ./update-pkgbuild.sh
+          ./update-pkgbuild.sh
+
+      - name: Configure Git
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Commit Changes
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          git add PKGBUILD .SRCINFO
+          git commit -m "chore: bump to ${{ steps.update.outputs.new_version }}"
+          git push
+
+      - name: Setup AUR SSH
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur_key
+          chmod 600 ~/.ssh/aur_key
+          echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5b1VWWLaE0eb75VvDCks7s" >> ~/.ssh/known_hosts
+
+      - name: Push to AUR
+        if: env.UPDATE_NEEDED == 'true'
+        run: |
+          git clone "ssh://aur@aur.archlinux.org/${{ secrets.AUR_PACKAGE_NAME }}.git" aur-repo
+          cp PKGBUILD .SRCINFO aur-repo/
+          cd aur-repo
+          git add .
+          git commit -m "Update to ${{ steps.update.outputs.new_version }}"
+          git push origin master
