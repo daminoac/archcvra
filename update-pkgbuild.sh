@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 获取最新版本
-API_URL="https://api.github.com/repos/软件作者/软件仓库/releases/latest"
+API_URL="https://api.github.com/repos/clash-verge-rev/clash-verge-rev/releases/tag/alpha"
 NEW_VER=$(curl -s $API_URL | jq -r '.tag_name | sub("^v"; "")')
 CURRENT_VER=$(grep -Po '^pkgver=\K.*' PKGBUILD)
 
